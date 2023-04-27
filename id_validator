@@ -1,0 +1,33 @@
+count = 0
+invalid_ids = 0
+
+def id_validator(verified_ids,feedback_ids):
+    global count 
+    global invalid_ids
+    for id in feedback_ids:
+        count += 1
+        if id not in verified_ids:
+            invalid_ids += 1
+    percent_invalid = (invalid_ids / count)
+    
+    print(str(invalid_ids) + " of " + str(count)  + " IDs unverified")
+    print("%.2f%%" % (100 * percent_invalid) + " unverified")
+    count = 0
+    invalid_ids = 0
+
+# RUN THIS CELL TO TEST YOUR FUNCTION
+import ada_c2_labs as lab
+
+# TEST SCENARIOS:                                   # SHOULD OUTPUT:
+print('Test 1:')
+ver1, fb1 = lab.lists_gen(8, 20, 15, 15)            # 4 of 15 IDs unverified.
+id_validator(ver1, fb1)                             # 26.67% unverified.
+
+print('\nTest 2:')
+ver2, fb2 = lab.lists_gen(8, 1000, 900, 600)        # 357 of 900 IDs unverified.
+id_validator(ver2, fb2)                             # 39.67% unverified.
+
+print('\nTest 3:')
+ver3, fb3 = lab.lists_gen(8, 15000, 14925, 13788)   # 1208 of 14925 IDs unverified.
+id_validator(ver3, fb3)                             # 8.09% unverified.
+        
