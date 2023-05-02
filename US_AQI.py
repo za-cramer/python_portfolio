@@ -13,8 +13,11 @@ aqi_list = lab.fetch_epa('aqi')
 # Convert lists into a list of tuples #
 epa_tuples = tuple(zip(state_list, county_list, aqi_list))
 
-# Convert epa_tuples into a dictionary.
-# State == key; county & aqi == values
+'''
+Convert epa_tuples into a dictionary.
+State: key; county & aqi: values
+'''
+# Instantiate aqi_dictionary
 aqi_dict = {}
 
 for state, county, api in epa_tuples:
@@ -25,12 +28,14 @@ for state, county, api in epa_tuples:
 
 aqi_dict
 
+# Define function to calculate # of readings for state specified
 def readings(state):
     print(len(aqi_dict[state]))
     
 readings('Colorado') 
 print(type(aqi_dict['California']))
 
+# Define function to calculate average API readings for state specified
 def state_api(state):
     state_aqi = [aqi for county, aqi in aqi_dict[state]]
 
@@ -40,6 +45,7 @@ def state_api(state):
     aqi_avg = state_aqi_total / state_aqi_count
     return(aqi_avg)
 
+# Define Function to county how many readings per county occured within a given state
 def county_counter(state):
     lists = []
     for i in range(len(aqi_dict.get(state))):
