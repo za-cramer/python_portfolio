@@ -1,10 +1,20 @@
+'''
+In your work as an analyst, you are continuing your research into air quality data collected by the U.S. Environmental Protection Agency (EPA). 
+The air quality index (AQI) is a number that runs from 0 to 500. 
+The higher the AQI value, the greater the level of air pollution and the greater the health concern.
+'''
+
+# Import Files for Lab #
 import ada_c2_labs as lab
 state_list = lab.fetch_epa('state')
 county_list = lab.fetch_epa('county')
 aqi_list = lab.fetch_epa('aqi')
 
+# Convert lists into a list of tuples #
 epa_tuples = tuple(zip(state_list, county_list, aqi_list))
 
+# Convert epa_tuples into a dictionary.
+# State == key; county & aqi == values
 aqi_dict = {}
 
 for state, county, api in epa_tuples:
