@@ -1,15 +1,26 @@
 import statsapi
 from datetime import datetime
 import pprint
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import os
 
 # Get today's date in the desired format
 today = datetime.today().strftime("%m/%d/%Y")
 
 # Retrieve standings data for today
 standings_df = statsapi.standings_data(date = today)
-pprint.pprint(standings_df)
+
+# Import Team Colors (https://github.com/rhelmstedter/coding-class/blob/main/coding-projects/data/mlb.csv)#
+colors_csv = 'c:\\xxx\\xxx\\xxx\\mlb.csv'
+colors = pd.read_csv(colors_csv)
+# Update Indians to Guardians #
+colors.loc[4,'team'] = 'Guardians'
+
+colors['Team'] = colors['location'] + ' ' + colors['team'] 
+colors = colors.drop(['location', 'team'], axis = 1)
+
 # Define a list of divisions
 divisions = [200, 201, 202, 203, 204, 205]
 
@@ -54,10 +65,39 @@ df['League'] = df['Division'].apply(lambda x: 'AL' if 'American League' in x els
 df['Record'] = np.where(df['Wins'] > df['Losses'], 'Winning',
                         np.where(df['Wins'] < df['Losses'], 'Losing',
                                  np.where(df['Wins'] == df['Losses'], '.500', None)))
+
+# Add Colors #
+df = df.merge(colors, on='Team',how = 'left')
+df
 # Show Updated Date #
 df['Updated_Last'] = today
 
 # Sort #
 df = df.sort_values('Wins', ascending = False).reset_index(drop = True)
-pprint.pprint(df)
-df.info()
+
+# Create the figure and axis
+fig, ax = plt.subplots()
+
+# Set the bar positions
+x = range(len(df))
+bar_width = 0.5
+
+# Create the bar chart
+bars = ax.bar(x, df['Wins'], width=bar_width, color=df['primary_color'])
+
+# Add labels and titles
+ax.set_ylabel('Wins')
+ax.set_title(f'Team Wins ({today})')
+
+# Add data labels to the bars
+for i, bar in enumerate(bars):
+    ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+            df['Wins'].iloc[i], ha='center', va='bottom')
+
+# Set the x-axis tick labels to the team names
+ax.set_xticks(x)
+ax.set_xticklabels(df['Team'], rotation=45, ha='right')
+
+# Show the chart
+plt.tight_layout()
+plt.show()
