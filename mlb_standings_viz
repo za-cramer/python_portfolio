@@ -1,0 +1,60 @@
+'''
+- Ensure you run mlb_standings.py prior to running this script
+'''
+with open('###//###//###mlb_standings.py', 'r') as file:
+    file1 = file.read()
+    exec(file1)
+
+## Use Plotly to create interactive viz ##
+import plotly.express as px
+import plotly.colors as pcolors
+import plotly.graph_objects as go
+
+# Create a bar chart trace
+trace = go.Bar(y=df['Team'], 
+               x=df['Wins'], 
+               orientation='h',
+               text = df['Wins'],
+               textposition = 'auto',
+               hovertemplate='Team: %{y}<br>Wins: %{x}',
+               hoverlabel={'namelength': 0}  # Set the namelength to 0 to remove the trace name from the hover label,
+               )
+
+# Add Color #
+df['prim_rgb'] = df['primary_color'].apply(lambda x: pcolors.hex_to_rgb('#' + x))
+df['sec_rgb'] = df['secondary_color'].apply(lambda x: pcolors.hex_to_rgb('#' + x))
+
+# Create a list of color strings in the format 'rgb(r, g, b)'
+df['prim_rgb'] = ['rgb({},{},{})'.format(r, g, b) for r, g, b in df['prim_rgb']]
+df['sec_rgb'] = ['rgb({},{},{})'.format(r, g, b) for r, g, b in df['sec_rgb']]
+
+# Update the marker attribute of the trace with the color strings
+trace.marker = {'color': df['prim_rgb'], 'line': {'color': df['sec_rgb'], 'width': 2}}
+
+# Create the figure
+bar = go.Figure(data=[trace])
+
+bar.update_layout(
+    font_family = "Verdana",
+    font_color="#FCFBF4",
+    plot_bgcolor="#43464B",
+    paper_bgcolor="#43464B",
+    title = dict(text = f"Major League Baseball Team Wins ({today})",
+                 font = dict(family="Verdana",size=25)),
+    xaxis = dict(
+        tickfont=dict(size=14),
+        title=dict(text="Wins", font=dict(family="Verdana", size=18)),  # Update the font family for the x-axis title
+        showgrid=False,
+    ),
+     yaxis=dict(
+        title=dict(text="", font=dict(family="Verdana", size=18)),
+        showgrid=False,
+        autorange="reversed"
+    ) 
+)
+
+# Display the figure
+bar.show()
+
+# Save as HTML #
+bar.write_html("###//###//###mlb_standings.html")
