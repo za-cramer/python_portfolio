@@ -1,0 +1,51 @@
+import os
+import pprint as pprint
+
+import pandas as pd
+
+import_file_path = 'G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/final_raw_data.csv'
+output_file_path = 'G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/'
+'''
+Generate generate_report function
+Arguments:
+    1. data_import = raw csv file containing survey data
+    2. output_location = location for output report
+'''
+def generate_report(data_import,output_location):
+    # Read the CSV file into a pandas dataframe
+    df = pd.read_csv(data_import)
+
+    # Perform data cleaning and processing
+    # ...
+
+    cols = list(df.columns)
+    tab = [[] for _ in range(len(cols) * (len(cols) - 1) // 2)]
+    # Compute the weighted crosstabs
+    k = 0
+    
+    # Ensure the output directory exists
+    os.makedirs(output_location, exist_ok=True)    
+
+  # Compute the weighted crosstabs
+    for i in range(len(cols)):
+        for j in range(i + 1, len(cols)):
+            col1 = cols[i]
+            col2 = cols[j]
+            tab[k] = pd.crosstab(
+                                index = df[col1], 
+                                columns = df[col2],
+                                normalize = 'columns')
+
+            # Ensure that the column values equal 100% per crosstab
+            tab[k] = tab[k].apply(lambda x :x * 100, axis=1)
+            #pprint.pprint(tab[k])
+
+            # Convert the cross-tabulation to a DataFrame and write it to a CSV file
+            csv_filename = f"cross_tab_{col1}_vs_{col2}.csv"
+            tab[k].to_csv(csv_filename)
+            print(f"CSV file '{csv_filename}' written successfully.")
+            
+            # next column #
+            k += 1    # Write the crosstabs to a CSV report        
+
+generate_report(import_file_path, output_file_path)
