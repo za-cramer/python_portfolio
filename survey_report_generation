@@ -1,6 +1,4 @@
 import os
-import pprint as pprint
-
 import pandas as pd
 
 import_file_path = (
@@ -74,7 +72,6 @@ def generate_report(data_import, output_location):
     # Top Lines #
     for i in df.columns:
         freq_counts = df[i].value_counts(normalize=True) * 100
-        pprint.pprint(freq_counts)
 
         csv_filename = f"topline{i}.csv"
         csv_path = os.path.join(output_location, csv_filename)
@@ -89,7 +86,6 @@ def generate_report(data_import, output_location):
             tab[k] = pd.crosstab(index=df[col1], columns=df[col2], normalize="columns")
             # Ensure that the column values equal 100% per crosstab
             tab[k] = tab[k].apply(lambda x: x * 100, axis=1)
-            pprint.pprint(tab[k])
 
             # Convert the cross-tabulation to a DataFrame and write it to a CSV file
             csv_filename = f"cross_tab_{col1}_vs_{col2}.csv"
