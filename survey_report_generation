@@ -3,49 +3,102 @@ import pprint as pprint
 
 import pandas as pd
 
-import_file_path = 'G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/final_raw_data.csv'
-output_file_path = 'G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/'
-'''
-Generate generate_report function
+import_file_path = (
+    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/Text_OK_County.csv"
+)
+output_file_path = (
+    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/"
+)
+
+"""
+generate_report function
+
 Arguments:
-    1. data_import = raw csv file containing survey data
+    1. data_import     = raw csv file containing survey data
     2. output_location = location for output report
-'''
-def generate_report(data_import,output_location):
+
+"""
+
+
+def generate_report(data_import, output_location):
+    df = pd.DataFrame()
     # Read the CSV file into a pandas dataframe
     df = pd.read_csv(data_import)
 
     # Perform data cleaning and processing
-    # ...
+    df.columns = df.columns.str[:3].str.strip()
+    # Keep only relevant columns #
+    columns_to_keep = [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4",
+        "Q5",
+        "Q6",
+        "Q7",
+        "Q8",
+        "Q9",
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13",
+        "Q14",
+        "Q15",
+        "sex",
+        "age",
+    ]
 
+    df = df[columns_to_keep]
+
+    # Make Age Categorical #
+    bins = [18, 30, 40, 50, 65, float("inf")]
+    labels = ["18-29", "30-39", "40-49", "50-64", "65+"]
+    df["age_bucket"] = pd.cut(df["age"], bins=bins, labels=labels, right=False)
+
+    # Rename Sex #
+    df["sex"].replace({"M": "Male", "F": "Female"}, inplace=True)
+
+    # Drop Age #
+    df.drop("age", axis=1, inplace=True)
+
+    # Identify columns and crosstab count #
     cols = list(df.columns)
     tab = [[] for _ in range(len(cols) * (len(cols) - 1) // 2)]
+
     # Compute the weighted crosstabs
     k = 0
-    
-    # Ensure the output directory exists
-    os.makedirs(output_location, exist_ok=True)    
 
-  # Compute the weighted crosstabs
+    # Ensure the output directory exists
+    os.makedirs(output_location, exist_ok=True)
+
+    # Top Lines #
+    for i in df.columns:
+        freq_counts = df[i].value_counts(normalize=True) * 100
+        pprint.pprint(freq_counts)
+
+        csv_filename = f"topline{i}.csv"
+        csv_path = os.path.join(output_location, csv_filename)
+        freq_counts.to_csv(csv_path)
+        print(f"CSV file '{csv_filename}' written successfully.")
+
+    # Compute the weighted crosstabs
     for i in range(len(cols)):
         for j in range(i + 1, len(cols)):
             col1 = cols[i]
             col2 = cols[j]
-            tab[k] = pd.crosstab(
-                                index = df[col1], 
-                                columns = df[col2],
-                                normalize = 'columns')
-
+            tab[k] = pd.crosstab(index=df[col1], columns=df[col2], normalize="columns")
             # Ensure that the column values equal 100% per crosstab
-            tab[k] = tab[k].apply(lambda x :x * 100, axis=1)
-            #pprint.pprint(tab[k])
+            tab[k] = tab[k].apply(lambda x: x * 100, axis=1)
+            pprint.pprint(tab[k])
 
             # Convert the cross-tabulation to a DataFrame and write it to a CSV file
             csv_filename = f"cross_tab_{col1}_vs_{col2}.csv"
-            tab[k].to_csv(csv_filename)
+            csv_path = os.path.join(output_location, csv_filename)
+            tab[k].to_csv(csv_path)
             print(f"CSV file '{csv_filename}' written successfully.")
-            
+
             # next column #
-            k += 1    # Write the crosstabs to a CSV report        
+            k += 1
+
 
 generate_report(import_file_path, output_file_path)
