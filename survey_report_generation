@@ -1,12 +1,8 @@
 import os
 import pandas as pd
 
-import_file_path = (
-    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/Text_OK_County.csv"
-)
-output_file_path = (
-    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/"
-)
+import_file_path = ("G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/Text_OK_County.csv")
+output_file_path = ("G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/")
 
 """
 generate_report function
@@ -52,12 +48,38 @@ def generate_report(data_import, output_location):
     bins = [18, 30, 40, 50, 65, float("inf")]
     labels = ["18-29", "30-39", "40-49", "50-64", "65+"]
     df["age_bucket"] = pd.cut(df["age"], bins=bins, labels=labels, right=False)
-
+    
+    # Drop Age #
+    df.drop("age", axis=1, inplace=True)
     # Rename Sex #
     df["sex"].replace({"M": "Male", "F": "Female"}, inplace=True)
 
-    # Drop Age #
-    df.drop("age", axis=1, inplace=True)
+    # Ensure the output directory exists
+    os.makedirs(output_location, exist_ok=True)
+
+# Apply survey weights
+    gender_weights = {"Female": 0.70, "Male": 0.30}
+    age_weights = {
+        "18-29": 0.05416,
+        "30-39": 0.0775,
+        "40-49": 0.10394,
+        "50-64": 0.2952,
+        "65+": 0.46867,
+    }
+
+    # Calculate weights and normalize them
+    df["weights"] = df.apply(lambda row: gender_weights[row["sex"]] * age_weights[row["age_bucket"]], axis=1)
+    #df["weights"] /= df["weights"].sum()
+
+    # Sample with weights
+    df = df.sample(frac=1, weights=df["weights"], random_state=1)
+
+            # Write the sampled data to a CSV file
+            # Convert the cross-tabulation to a DataFrame and write it to a CSV file
+    df.to_csv(os.path.join(output_file_path, "sampled_data.csv"), index=False)
+            
+    print(f"CSV file '{df}' sample written successfully.")
+    
 
     # Identify columns and crosstab count #
     cols = list(df.columns)
@@ -65,10 +87,7 @@ def generate_report(data_import, output_location):
 
     # Compute the weighted crosstabs
     k = 0
-
-    # Ensure the output directory exists
-    os.makedirs(output_location, exist_ok=True)
-
+    
     # Top Lines #
     for i in df.columns:
         freq_counts = df[i].value_counts(normalize=True) * 100
