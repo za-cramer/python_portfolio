@@ -1,27 +1,15 @@
 import os
+
 import pandas as pd
 
 import_file_path = ("G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/Text_OK_County.csv")
 output_file_path = ("G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/")
 
-"""
-generate_report function
-
-Arguments:
-    1. data_import     = raw csv file containing survey data
-    2. output_location = location for output report
-
-"""
-
-
 def generate_report(data_import, output_location):
     df = pd.DataFrame()
-    # Read the CSV file into a pandas dataframe
     df = pd.read_csv(data_import)
 
-    # Perform data cleaning and processing
     df.columns = df.columns.str[:3].str.strip()
-    # Keep only relevant columns #
     columns_to_keep = [
         "Q1",
         "Q2",
@@ -41,24 +29,17 @@ def generate_report(data_import, output_location):
         "sex",
         "age",
     ]
-
     df = df[columns_to_keep]
 
-    # Make Age Categorical #
     bins = [18, 30, 40, 50, 65, float("inf")]
     labels = ["18-29", "30-39", "40-49", "50-64", "65+"]
     df["age_bucket"] = pd.cut(df["age"], bins=bins, labels=labels, right=False)
-    
-    # Drop Age #
     df.drop("age", axis=1, inplace=True)
-    # Rename Sex #
     df["sex"].replace({"M": "Male", "F": "Female"}, inplace=True)
 
-    # Ensure the output directory exists
     os.makedirs(output_location, exist_ok=True)
 
-# Apply survey weights
-    gender_weights = {"Female": 0.70, "Male": 0.30}
+    gender_weights = {"Female": 0.50, "Male": 0.50}
     age_weights = {
         "18-29": 0.05416,
         "30-39": 0.0775,
@@ -67,53 +48,40 @@ def generate_report(data_import, output_location):
         "65+": 0.46867,
     }
 
-    # Calculate weights and normalize them
     df["weights"] = df.apply(lambda row: gender_weights[row["sex"]] * age_weights[row["age_bucket"]], axis=1)
-    #df["weights"] /= df["weights"].sum()
 
-    # Sample with weights
     df = df.sample(frac=1, weights=df["weights"], random_state=1)
 
-            # Write the sampled data to a CSV file
-            # Convert the cross-tabulation to a DataFrame and write it to a CSV file
-    df.to_csv(os.path.join(output_file_path, "sampled_data.csv"), index=False)
-            
-    print(f"CSV file '{df}' sample written successfully.")
-    
+    # Create Excel writer
+    excel_writer = pd.ExcelWriter(os.path.join(output_location, "output_report.xlsx"), engine='xlsxwriter')
 
-    # Identify columns and crosstab count #
-    cols = list(df.columns)
-    tab = [[] for _ in range(len(cols) * (len(cols) - 1) // 2)]
+    # Write sampled data to a sheet
+    df.to_excel(excel_writer, sheet_name='sampled_data', index=False)
 
-    # Compute the weighted crosstabs
-    k = 0
-    
-    # Top Lines #
+    # Top Lines with weights excluded and observed=True
     for i in df.columns:
-        freq_counts = df[i].value_counts(normalize=True) * 100
+        if i != 'weights':
+            freq_counts = df.groupby(i)['weights'].sum() / df['weights'].sum() * 100
+            freq_counts.to_excel(excel_writer, sheet_name=f'topline_{i}')
 
-        csv_filename = f"topline{i}.csv"
-        csv_path = os.path.join(output_location, csv_filename)
-        freq_counts.to_csv(csv_path)
-        print(f"CSV file '{csv_filename}' written successfully.")
+    # Compute the weighted crosstabs with weights excluded and observed=True
+    k = 0
+    for i in range(len(df.columns)):
+        for j in range(i + 1, len(df.columns)):
+            col1 = df.columns[i]
+            col2 = df.columns[j]
+            
+            if col1 != 'weights' and col2 != 'weights':
+                # Use groupby along with apply to calculate weighted crosstabs
+                tab = df.groupby([col1, col2])['weights'].sum().unstack()
+                tab = (tab.T / tab.sum(axis=1)).T * 100
+                
+                # Write crosstab to a sheet
+                tab.to_excel(excel_writer, sheet_name=f'cross_tab_{col1}_vs_{col2}')
+                k += 1
 
-    # Compute the weighted crosstabs
-    for i in range(len(cols)):
-        for j in range(i + 1, len(cols)):
-            col1 = cols[i]
-            col2 = cols[j]
-            tab[k] = pd.crosstab(index=df[col1], columns=df[col2], normalize="columns")
-            # Ensure that the column values equal 100% per crosstab
-            tab[k] = tab[k].apply(lambda x: x * 100, axis=1)
-
-            # Convert the cross-tabulation to a DataFrame and write it to a CSV file
-            csv_filename = f"cross_tab_{col1}_vs_{col2}.csv"
-            csv_path = os.path.join(output_location, csv_filename)
-            tab[k].to_csv(csv_path)
-            print(f"CSV file '{csv_filename}' written successfully.")
-
-            # next column #
-            k += 1
-
+    # Save and close the Excel writer
+    excel_writer._save()
+    print("Excel workbook written successfully.")
 
 generate_report(import_file_path, output_file_path)
