@@ -1,87 +1,155 @@
 import os
+import warnings
+from datetime import datetime
 
 import pandas as pd
+from docx import Document
 
-import_file_path = ("G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/Text_OK_County.csv")
-output_file_path = ("G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/")
+# EDIT GLOBAL VARIABLES BELOW #
+ReportTitle = ['Oklahoma Survey']
 
+import_file_path = (
+    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/Text_OK_County.csv"
+)
+output_file_path = (
+    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/output/python/"
+)
+survey_path = (
+    "G:/My Drive/Data Work/Handy/Projects/OK County 10.2021/OK County Survey_V2.docx"
+)
+
+number_of_questions = 15  # i.e., 15 will result in Q1-Q15
+additional_columns = ["sex", "age"]  # i.e., ['sex','age']
+
+gender_weights = {"Female": 0.50, "Male": 0.50}
+
+age_weights = {
+    "18-29": 0.05416,
+    "30-39": 0.0775,
+    "40-49": 0.10394,
+    "50-64": 0.2952,
+    "65+": 0.46867,
+}
+
+#####################################
+###### !! DO NOT EDIT BELOW !! ######
+#####################################
+
+# Keep the desired number of columns, assumes 'Q' prefix
+columns_to_keep = []
+for i in range(1, number_of_questions + 1):
+    columns_to_keep.append("Q" + str(i))
+
+columns_to_keep.extend(additional_columns)
+
+# Suppress FutureWarning
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
+
+# Define generate report function #
 def generate_report(data_import, output_location):
+    # Create an empty DataFrame
     df = pd.DataFrame()
+    # Read the CSV file into the DataFrame
     df = pd.read_csv(data_import)
 
+    # Extract the first three characters from each column name and strip leading/trailing spaces
     df.columns = df.columns.str[:3].str.strip()
-    columns_to_keep = [
-        "Q1",
-        "Q2",
-        "Q3",
-        "Q4",
-        "Q5",
-        "Q6",
-        "Q7",
-        "Q8",
-        "Q9",
-        "Q10",
-        "Q11",
-        "Q12",
-        "Q13",
-        "Q14",
-        "Q15",
-        "sex",
-        "age",
-    ]
+    # Select only the desired columns
     df = df[columns_to_keep]
+    print(df.columns)
 
-    bins = [18, 30, 40, 50, 65, float("inf")]
-    labels = ["18-29", "30-39", "40-49", "50-64", "65+"]
-    df["age_bucket"] = pd.cut(df["age"], bins=bins, labels=labels, right=False)
-    df.drop("age", axis=1, inplace=True)
-    df["sex"].replace({"M": "Male", "F": "Female"}, inplace=True)
-
+    # Check if the output location exists; if not, create it
     os.makedirs(output_location, exist_ok=True)
 
-    gender_weights = {"Female": 0.50, "Male": 0.50}
-    age_weights = {
-        "18-29": 0.05416,
-        "30-39": 0.0775,
-        "40-49": 0.10394,
-        "50-64": 0.2952,
-        "65+": 0.46867,
-    }
+    # Define Age Bins and Labels #
+    bins = [18, 30, 40, 50, 65, float("inf")]
+    labels = ["18-29", "30-39", "40-49", "50-64", "65+"]
+    # Create a new column 'age_bucket' based on binning
+    df["age_bucket"] = pd.cut(df["age"], bins=bins, labels=labels, right=False)
+    # Drop the original 'age' column
+    df.drop("age", axis=1, inplace=True)
 
-    df["weights"] = df.apply(lambda row: gender_weights[row["sex"]] * age_weights[row["age_bucket"]], axis=1)
+    # Replace 'M' with 'Male' and 'F' with 'Female' in the 'sex' column
+    df["sex"].replace({"M": "Male", "F": "Female"}, inplace=True)
 
+    # Calculate weights based on gender and age bucket
+    df["weights"] = df.apply(
+        lambda row: gender_weights[row["sex"]] * age_weights[row["age_bucket"]], axis=1
+    )
+
+    # Sample the DataFrame with weights
     df = df.sample(frac=1, weights=df["weights"], random_state=1)
 
-    # Create Excel writer
-    excel_writer = pd.ExcelWriter(os.path.join(output_location, "output_report.xlsx"), engine='xlsxwriter')
+    # Create an Excel writer
+    excel_writer = pd.ExcelWriter(
+        os.path.join(output_location, "output_report.xlsx"), engine="xlsxwriter"
+    )
+
+    # Add a title page
+    title_page = pd.DataFrame({
+        'Title': ReportTitle,
+        'By': ['South Creek Group'],
+        'Date':[datetime.now().strftime('%m-%d-%Y')]
+    })
+
+    title_page.to_excel(excel_writer, sheet_name='Title Page', index=False)
 
     # Write sampled data to a sheet
-    df.to_excel(excel_writer, sheet_name='sampled_data', index=False)
+    # df.to_excel(excel_writer, sheet_name="sampled_data", index=False)
 
-    # Top Lines with weights excluded and observed=True
+    # Add a sheet for the survey instrument
+    excel_writer.sheets['Survey Instrument'] = excel_writer.book.add_worksheet('Survey Instrument')
+    excel_writer.sheets['Survey Instrument'].set_column('A:A', width=100)  # Adjust column width if needed
+
+    # Read the survey instrument from the Word document
+    survey_doc = Document(survey_path)
+
+    # Add the survey instrument to the report
+    for idx, para in enumerate(survey_doc.paragraphs):
+        excel_writer.sheets['Survey Instrument'].write(f"A{idx + 1}", para.text)
+
+    # Top Lines with weights
+# Top Lines with weights
     for i in df.columns:
-        if i != 'weights':
-            freq_counts = df.groupby(i)['weights'].sum() / df['weights'].sum() * 100
-            freq_counts.to_excel(excel_writer, sheet_name=f'topline_{i}')
+        if i != "weights":
+            # Calculate frequency counts with weights
+            freq_counts = df.groupby(i)["weights"].sum() / df["weights"].sum() * 100
 
-    # Compute the weighted crosstabs with weights excluded and observed=True
+            # Replace null or 0 with 0
+            freq_counts = freq_counts.fillna(0)
+
+            # Format as percentage with two decimal places
+            freq_counts = freq_counts.apply(lambda x: '{:.2f}%'.format(x))
+
+            freq_counts.to_excel(excel_writer, sheet_name=f"topline_{i}")
+
+    # Compute the weighted crosstabs with weights
     k = 0
     for i in range(len(df.columns)):
         for j in range(i + 1, len(df.columns)):
             col1 = df.columns[i]
             col2 = df.columns[j]
-            
-            if col1 != 'weights' and col2 != 'weights':
+
+            if col1 != "weights" and col2 != "weights":
                 # Use groupby along with apply to calculate weighted crosstabs
-                tab = df.groupby([col1, col2])['weights'].sum().unstack()
-                tab = (tab.T / tab.sum(axis=1)).T * 100
-                
+                tab = df.groupby([col1, col2])["weights"].sum().unstack()
+                tab = (tab / tab.sum() * 100)
+                # Replace null or 0 with 0
+                tab = tab.fillna(0)
+
+                # Format as percentage with two decimal places
+                tab = tab.applymap(lambda x: '{:.2f}%'.format(x))
+
                 # Write crosstab to a sheet
-                tab.to_excel(excel_writer, sheet_name=f'cross_tab_{col1}_vs_{col2}')
+                tab.to_excel(excel_writer, sheet_name=f"cross_tab_{col1}_vs_{col2}")
                 k += 1
+
 
     # Save and close the Excel writer
     excel_writer._save()
     print("Excel workbook written successfully.")
 
+
+# Execute the generate_report function with specified input and output paths
 generate_report(import_file_path, output_file_path)
