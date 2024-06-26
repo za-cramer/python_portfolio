@@ -78,4 +78,37 @@ for i in ask_posts:
 counts_by_hour = {}
 comments_by_hour = {}
 
-pprint(result_list[0:10])
+for i in result_list:
+    hour = i[0]
+    if hour not in counts_by_hour:
+        counts_by_hour[hour] = 1
+        comments_by_hour[hour] = i[1] 
+    else:
+        counts_by_hour[hour] += 1
+        comments_by_hour[hour] += i[1]
+
+counts_by_hour
+comments_by_hour
+
+# Avg Comments per Post by Hour #
+avg_by_hour = []
+for i in counts_by_hour:
+    if i in comments_by_hour:
+        avg_by_hour.append([i, round(comments_by_hour[i] / counts_by_hour[i],2)])
+pprint(avg_by_hour)
+
+# Sort by Avg Num of Comments per Post by Hour #
+## First Swap column positions into new list of lists ##
+swap_avg_by_hour = []
+for i in avg_by_hour:
+    swap_avg_by_hour.append([i[1], i[0]])
+
+pprint(swap_avg_by_hour)
+
+## sort and store in new list of lists ## 
+sorted_swap = sorted(swap_avg_by_hour, reverse=True)
+
+for i in sorted_swap[:5]:
+    hr_obj = dt.datetime.strptime(i[1],"%H")
+    hr_s = hr_obj.strftime("%H:%M")
+    print("{} {:.1f} average comments per post".format(hr_s, i[0]))
