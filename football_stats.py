@@ -1,4 +1,8 @@
+# https://github.com/za-cramer/python_portfolio/blob/main/football_stats.py #
+
 import pprint
+
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
@@ -39,3 +43,38 @@ print(len(links_squad))
 team_urls = [] 
 for i in links_squad:
     team_urls.append(f"https://fbref.com{i}")
+
+###################################################
+# retrieve a team's data #
+team_url = team_urls[0]
+team_data = requests.get(team_url)
+
+# data #
+matches = pd.read_html(team_data.text, match="Scores & Fixtures")[0]
+print(matches)
+
+# shooting data #
+soup = BeautifulSoup(team_data.text)
+
+links = soup.find_all('a')
+
+linksb = [] 
+for i in links:
+    linksb.append(i.get("href"))
+
+pprint.pprint(linksb)
+shooting_links = []
+for i in linksb:
+    if i and 'all_stats_shooting' in i:
+        shooting_links.append(i)
+    
+
+shooting_data_url = requests.get(f"https://fbref.com{shooting_links[0]}")
+
+# read html with pandas #
+shooting = pd.read_html(shooting_data_url.text, match="Shooting")[0]
+shooting.columns = shooting.columns.droplevel()
+
+# two DF. Matches & Shooting #
+team_data = matches.merge(shooting[["Date", "Sh", "SoT", "Dist", "FK", "PK", "PKatt"]], on="Date")
+pprint.pprint(team_data)
